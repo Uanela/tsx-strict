@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "tsx-strict": "./bin/strict.js"
+    "tsx-strict": "./bin/tsx-strict.js"
   },
   "scripts": {
     "build": "npx rimraf dist && tsc",

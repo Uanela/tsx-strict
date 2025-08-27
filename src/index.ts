@@ -3,25 +3,20 @@
 import nodeCleanup, { uninstall } from "node-cleanup";
 import spawn from "cross-spawn";
 import { run } from "./runner";
-import {
-  manipulate,
-  detectState,
-  deleteClear,
-  print,
-} from "./stdout-manipulator";
+import { detectState, deleteClear, print } from "./stdout-manipulator";
 import { createInterface } from "readline";
 import { killProcesses } from "./killer";
 import { getCompilerPath } from "./compiler-provider";
 
 let firstTime = true;
-export let successKiller: (() => Promise<void>) | null = null;
+export let tsxKiller: (() => Promise<void>) | null = null;
 
-export function setSuccessKiller(value: typeof successKiller) {
-  successKiller = value;
+export function setTsxKiller(value: typeof tsxKiller) {
+  tsxKiller = value;
 }
 
-export function getSuccessKiller() {
-  return successKiller;
+export function getTsxKiller() {
+  return tsxKiller;
 }
 
 export async function runTsxStrict(file: string, options: Record<string, any>) {
@@ -39,7 +34,7 @@ export async function runTsxStrict(file: string, options: Record<string, any>) {
   if (!noTypeCheck) runTsxCommand();
 
   function runTsxCommand(): void {
-    successKiller = run(
+    tsxKiller = run(
       `npx tsx ${[watch ? "--watch" : "", file, tsxArgs].join(" ")}`
     );
   }
@@ -66,15 +61,13 @@ export async function runTsxStrict(file: string, options: Record<string, any>) {
 
   const rl = createInterface({ input: tscProcess.stdout });
 
-  rl.on("line", function (input) {
-    if (noClear) input = deleteClear(input);
+  rl.on("line", function (line) {
+    if (noClear) line = deleteClear(line);
 
-    const line = manipulate(input);
-    if (!silent) {
+    if (!silent)
       print(line, {
         noClear,
       });
-    }
 
     const state = detectState(line);
     const compilationStarted = state.compilationStarted;
@@ -84,10 +77,7 @@ export async function runTsxStrict(file: string, options: Record<string, any>) {
     compilationErrorSinceStart =
       (!compilationStarted && compilationErrorSinceStart) || compilationError;
 
-    if (state.fileEmitted !== null) {
-      Signal.emitFile(state.fileEmitted);
-      // triggerOnEmit();
-    }
+    if (state.fileEmitted !== null) Signal.emitFile(state.fileEmitted);
 
     if (compilationStarted) {
       compilationId++;
@@ -102,7 +92,6 @@ export async function runTsxStrict(file: string, options: Record<string, any>) {
       compilationId++;
       killProcesses(compilationId).then((previousCompilationId: any) => {
         if (previousCompilationId !== compilationId) return;
-
         if (compilationErrorSinceStart) Signal.emitFail();
         else {
           if (firstTime) {
@@ -119,8 +108,8 @@ export async function runTsxStrict(file: string, options: Record<string, any>) {
 
   if (typeof process.on === "function")
     process.on("message", (msg: string) => {
-      if (msg === "run-on-success-command" && successKiller)
-        successKiller().then(runTsxCommand);
+      if (msg === "run-on-success-command" && tsxKiller)
+        tsxKiller().then(runTsxCommand);
     });
 
   const sendSignal = (msg: string) => process.send && process.send(msg);
@@ -136,7 +125,7 @@ export async function runTsxStrict(file: string, options: Record<string, any>) {
   nodeCleanup((_exitCode: number | null, signal: string | null) => {
     if (signal) tscProcess.kill(signal as any);
 
-    killProcesses(0, true).then(() => process.exit());
+    killProcesses(0).then(() => process.exit());
     // don't call cleanup handler again
     uninstall();
     return false;

@@ -1,4 +1,4 @@
-# tsx-strict
+# `Tsx-Strict`
 
 Type-safe TSX runner with automatic type-checking
 

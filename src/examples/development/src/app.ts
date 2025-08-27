@@ -14,9 +14,9 @@ const server = createServer((req, res) => {
 
 const port = 8000;
 
-// class Test {
-//   name: string;
-// }
+class Test {
+  name!: string;
+}
 // const a: number = "uanela";
 
 const shutdown = () => {

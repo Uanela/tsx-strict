@@ -23,7 +23,7 @@ program
     try {
       await runTsxStrict(file, options);
     } catch (error: any) {
-      console.error("Error uanela:", error.message);
+      console.error("Error:", error.message);
       process.exit(1);
     }
   });

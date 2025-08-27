@@ -1,7 +1,7 @@
 import psTree from "ps-tree";
 import spawn from "cross-spawn";
 import { ChildProcess, exec } from "child_process";
-import { getSuccessKiller, setSuccessKiller } from ".";
+import { getTsxKiller, setTsxKiller } from ".";
 
 let KILL_SIGNAL = "15"; // SIGTERM
 let hasPS = true;
@@ -41,8 +41,8 @@ export function kill(child: ChildProcess): Promise<void> {
 let runningKillProcessesPromise: Promise<number> | null = null;
 
 export async function killProcesses(
-  currentCompilationId: number,
-  killAll: boolean = false
+  currentCompilationId: number
+  // killAll: boolean = false
 ): Promise<number> {
   if (runningKillProcessesPromise) {
     return runningKillProcessesPromise.then(() => currentCompilationId);
@@ -50,10 +50,10 @@ export async function killProcesses(
 
   const promisesToWaitFor: Promise<any>[] = [];
 
-  const successKiller = getSuccessKiller();
-  if (successKiller) {
-    promisesToWaitFor.push(successKiller());
-    setSuccessKiller(null);
+  const tsxKiller = getTsxKiller();
+  if (tsxKiller) {
+    promisesToWaitFor.push(tsxKiller());
+    setTsxKiller(null);
   }
 
   runningKillProcessesPromise = Promise.all(promisesToWaitFor)

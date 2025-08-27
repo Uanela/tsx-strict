@@ -1,6 +1,6 @@
 # `Tsx-Strict`
 
-Type-safe TSX runner with automatic type-checking
+### Type-safe TSX runner with automatic type-checking
 
 tsx-strict is a CLI tool that runs TypeScript files with TSX while providing real-time type checking. It combines the speed of tsx with the safety of TypeScript's compiler, ensuring your code is both executable and type-safe.
 
@@ -16,7 +16,7 @@ tsx-strict is a CLI tool that runs TypeScript files with TSX while providing rea
 ## Installation
 
 ```bash
-npm install -g tsx-strict
+pnpm install -g tsx-strict
 ```
 
 Or use with npx:
@@ -68,7 +68,7 @@ tsx-strict src/index.ts
 ### Watch Mode with Custom TSC Arguments
 
 ```bash
-tsx-strict --watch --tsc-args --strict --exactOptionalPropertyTypes src/app.ts
+tsx-strict --watch --tsc-args "--strict --exactOptionalPropertyTypes" src/app.ts
 ```
 
 ### Silent Mode

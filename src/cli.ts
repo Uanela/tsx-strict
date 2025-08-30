@@ -13,11 +13,10 @@ program
   .version(packageJson.version)
   .argument("<file>", "TypeScript file to run")
   .option("-w, --watch", "Enable watch mode", false)
-  .option("--no-clear", "Do not clear screen", false)
+  .option("--no-clear", "Do not clear screen", true)
   .option("--compiler", "Compiler", "typescript/bin/tsc")
   .option("--tsc-args <args...>", "Additional tsc arguments")
   .option("--tsx-args <args...>", "Additional tsx arguments")
-  .option("--silent", "Suppress output", false)
   .option("--no-type-check", "Skip type checking (run tsx directly)", true)
   .action(async (file, options) => {
     try {

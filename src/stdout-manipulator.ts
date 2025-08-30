@@ -64,7 +64,7 @@ function color(line: string): string {
 
 type TPrintParams = {
   noColors?: boolean;
-  noClear?: boolean;
+  clear?: boolean;
   requestedToListEmittedFiles?: boolean;
   signalEmittedFiles?: boolean;
 };
@@ -76,7 +76,6 @@ export function print(
   line: string,
   {
     noColors = false,
-    // noClear = false,
     requestedToListEmittedFiles = false,
     signalEmittedFiles = false,
   }: TPrintParams = {}

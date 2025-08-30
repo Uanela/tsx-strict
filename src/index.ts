@@ -21,32 +21,68 @@ export function getTsxKiller() {
 
 export async function runTsxStrict(file: string, options: Record<string, any>) {
   const {
-    noClear,
-    noTypeCheck,
-    silent,
-    compiler,
-    watch,
-    tscArgs = [],
-    tsxArgs = [],
+    clear = true,
+    typeCheck = true,
+    compiler = "tsc",
+    watch = false,
+    tscArgs = "",
+    tsxArgs = "",
     maxNodeMem,
   } = options;
 
-  if (!noTypeCheck) runTsxCommand();
+  runTsxCommand();
+  if (!typeCheck) return;
 
   function runTsxCommand(): void {
-    tsxKiller = run(
-      `npx tsx ${[watch ? "--watch" : "", file, tsxArgs].join(" ")}`
-    );
+    const tsxArgsArray = [];
+
+    if (!clear && watch) tsxArgsArray.push("--watch-preserve-output");
+    else if (watch) tsxArgsArray.push("--watch");
+
+    tsxArgsArray.push(file);
+
+    if (tsxArgs.trim()) {
+      const additionalArgs = tsxArgs
+        .trim()
+        .split(/\s+/)
+        .filter((arg: string[]) => arg.length > 0);
+
+      const uniqueArgs = Array.from(
+        new Set([...tsxArgsArray, ...additionalArgs])
+      );
+      tsxArgsArray.length = 0;
+      tsxArgsArray.push(...uniqueArgs);
+    }
+
+    const tsxCommand = `npx tsx ${tsxArgsArray.join(" ")}`;
+
+    tsxKiller = run(tsxCommand);
   }
 
-  const tscProcess = spawn("node", [
-    ...(maxNodeMem ? [`--max_old_space_size=${maxNodeMem}`] : []),
-    getCompilerPath(compiler),
-    "--noEmit",
-    watch ? "--watch" : "",
-    ...tscArgs,
-  ]);
+  const tscArgsArray = [];
 
+  const nodeArgs = maxNodeMem ? [`--max_old_space_size=${maxNodeMem}`] : [];
+
+  tscArgsArray.push(getCompilerPath(compiler));
+
+  tscArgsArray.push("--noEmit");
+
+  if (watch) tscArgsArray.push("--watch");
+
+  if (tscArgs.trim()) {
+    const additionalArgs = tscArgs
+      .trim()
+      .split(/\s+/)
+      .filter((arg: string[]) => arg.length > 0);
+
+    const uniqueArgs = Array.from(
+      new Set([...tscArgsArray, ...additionalArgs])
+    );
+    tscArgsArray.length = 0;
+    tscArgsArray.push(...uniqueArgs);
+  }
+
+  const tscProcess = spawn("node", [...nodeArgs, ...tscArgsArray]);
   if (!tscProcess.stdout) throw new Error("Unable to read Typescript stdout");
   if (!tscProcess.stderr) throw new Error("Unable to read Typescript stderr");
 
@@ -62,12 +98,9 @@ export async function runTsxStrict(file: string, options: Record<string, any>) {
   const rl = createInterface({ input: tscProcess.stdout });
 
   rl.on("line", function (line) {
-    if (noClear) line = deleteClear(line);
-
-    if (!silent)
-      print(line, {
-        noClear,
-      });
+    print(line, {
+      clear,
+    });
 
     const state = detectState(line);
     const compilationStarted = state.compilationStarted;

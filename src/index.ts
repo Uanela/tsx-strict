@@ -7,6 +7,7 @@ import { detectState, print } from "./stdout-manipulator";
 import { createInterface } from "readline";
 import { killProcesses } from "./killer";
 import { getCompilerPath } from "./compiler-provider";
+import { setupFileWatcher, stopFileWatcher } from "./file-watcher";
 
 let firstTime = true;
 export let tsxKiller: (() => Promise<void>) | null = null;
@@ -28,16 +29,14 @@ export async function runTsxStrict(file: string, options: Record<string, any>) {
     tscArgs = "",
     tsxArgs = "",
     maxNodeMem,
+    include,
   } = options;
-
-  runTsxCommand();
-  if (!typeCheck) return;
 
   function runTsxCommand(): void {
     const tsxArgsArray = [];
 
-    if (!clear && watch) tsxArgsArray.push("--watch-preserve-output");
-    else if (watch) tsxArgsArray.push("--watch");
+    // if (!clear && watch) tsxArgsArray.push("--watch-preserve-output");
+    // else if (watch) tsxArgsArray.push("--watch");
 
     tsxArgsArray.push(file);
 
@@ -56,8 +55,13 @@ export async function runTsxStrict(file: string, options: Record<string, any>) {
 
     const tsxCommand = `npx tsx ${tsxArgsArray.join(" ")}`;
 
-    tsxKiller = run(tsxCommand);
+    if (tsxKiller) tsxKiller?.().then(() => (tsxKiller = run(tsxCommand)));
+    else tsxKiller = run(tsxCommand);
   }
+
+  runTsxCommand();
+
+  if (!typeCheck) return;
 
   const tscArgsArray = [];
 
@@ -94,6 +98,21 @@ export async function runTsxStrict(file: string, options: Record<string, any>) {
 
   let compilationId = 0;
   let compilationErrorSinceStart = false;
+  let hasTsErrors = false;
+
+  function restartTsx() {
+    compilationId++;
+    killProcesses(compilationId).then((previousCompilationId: any) => {
+      if (previousCompilationId !== compilationId) return;
+      if (compilationErrorSinceStart) Signal.emitFail();
+      else {
+        Signal.emitSuccess();
+        runTsxCommand();
+      }
+    });
+  }
+
+  if (watch) setupFileWatcher(restartTsx);
 
   const rl = createInterface({ input: tscProcess.stdout });
 
@@ -105,14 +124,12 @@ export async function runTsxStrict(file: string, options: Record<string, any>) {
     const state = detectState(line);
     const compilationStarted = state.compilationStarted;
     const compilationError = state.compilationError;
-    const compilationComplete = state.compilationComplete;
+    const compilationCompleteWithoutError =
+      state.compilationCompleteWithoutError;
 
-    compilationErrorSinceStart =
-      (!compilationStarted && compilationErrorSinceStart) || compilationError;
-
-    if (state.fileEmitted !== null) Signal.emitFile(state.fileEmitted);
-
-    if (compilationStarted) {
+    if (compilationCompleteWithoutError) hasTsErrors = false;
+    if (compilationError) {
+      hasTsErrors = true;
       compilationId++;
       killProcesses(compilationId).then((previousCompilationId: any) => {
         if (previousCompilationId !== compilationId) return;
@@ -121,21 +138,24 @@ export async function runTsxStrict(file: string, options: Record<string, any>) {
       });
     }
 
-    if (compilationComplete) {
+    compilationErrorSinceStart =
+      (!compilationStarted && compilationErrorSinceStart) || compilationError;
+
+    if (state.fileEmitted !== null) Signal.emitFile(state.fileEmitted);
+
+    if (compilationCompleteWithoutError && !hasTsErrors && !firstTime) {
       compilationId++;
       killProcesses(compilationId).then((previousCompilationId: any) => {
         if (previousCompilationId !== compilationId) return;
         if (compilationErrorSinceStart) Signal.emitFail();
         else {
-          if (firstTime) {
-            firstTime = false;
-            Signal.emitFirstSuccess();
-          }
-
           Signal.emitSuccess();
           runTsxCommand();
         }
       });
+    } else if (firstTime && compilationCompleteWithoutError && !hasTsErrors) {
+      firstTime = false;
+      Signal.emitFirstSuccess();
     }
   });
 
@@ -158,6 +178,7 @@ export async function runTsxStrict(file: string, options: Record<string, any>) {
   nodeCleanup((_exitCode: number | null, signal: string | null) => {
     if (signal) tscProcess.kill(signal as any);
 
+    stopFileWatcher();
     killProcesses(0).then(() => process.exit());
     // don't call cleanup handler again
     uninstall();

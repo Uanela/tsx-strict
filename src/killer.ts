@@ -42,11 +42,9 @@ let runningKillProcessesPromise: Promise<number> | null = null;
 
 export async function killProcesses(
   currentCompilationId: number
-  // killAll: boolean = false
 ): Promise<number> {
-  if (runningKillProcessesPromise) {
+  if (runningKillProcessesPromise)
     return runningKillProcessesPromise.then(() => currentCompilationId);
-  }
 
   const promisesToWaitFor: Promise<any>[] = [];
 

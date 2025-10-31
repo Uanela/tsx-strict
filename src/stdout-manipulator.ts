@@ -122,15 +122,10 @@ export function deleteClear(line: string): string {
 
 export function detectState(line: string) {
   const clearLine = stripAnsi(line);
-  const compilationStarted =
-    compilationStartedRegex.test(clearLine) ||
-    nativeCompilationStartedRegex.test(clearLine);
+  const compilationStarted = compilationStartedRegex.test(clearLine);
 
-  const compilationError =
-    compilationCompleteWithErrorRegex.test(clearLine) ||
-    nativeCompilationCompleteWithErrorRegex.test(clearLine) ||
-    typescriptErrorRegex.test(clearLine) ||
-    typescriptPrettyErrorRegex.test(clearLine);
+  const compilationError = line.includes("): error TS");
+  const compilationCompleteWithoutError = line.includes("Found 0 errors");
 
   const compilationComplete =
     compilationCompleteRegex.test(clearLine) ||
@@ -143,5 +138,6 @@ export function detectState(line: string) {
     compilationError,
     compilationComplete,
     fileEmitted,
+    compilationCompleteWithoutError,
   };
 }

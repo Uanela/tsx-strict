@@ -3,7 +3,7 @@
 import nodeCleanup, { uninstall } from "node-cleanup";
 import spawn from "cross-spawn";
 import { run } from "./runner";
-import { detectState, deleteClear, print } from "./stdout-manipulator";
+import { detectState, print } from "./stdout-manipulator";
 import { createInterface } from "readline";
 import { killProcesses } from "./killer";
 import { getCompilerPath } from "./compiler-provider";

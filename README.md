@@ -1,6 +1,6 @@
-# `Tsx-Strict`
+# Tsx-Strict
 
-### Type-safe TSX runner with automatic type-checking
+### Type-safe TSX runner with type-checking
 
 tsx-strict is a CLI tool that runs TypeScript files with TSX while providing real-time type checking. It combines the speed of tsx with the safety of TypeScript's compiler, ensuring your code is both executable and type-safe.
 
@@ -97,24 +97,6 @@ The tool intelligently manages these processes, restarting tsx only when type ch
 - Node.js >= 20.0.0
 - tsx ^4.20.5 (peer dependency)
 
-## API
-
-You can also use tsx-strict programmatically:
-
-```typescript
-import { runTsxStrict } from "tsx-strict";
-
-await runTsxStrict("src/app.ts", {
-    watch: true,
-    silent: false,
-    noClear: false,
-    compiler: "typescript/bin/tsc",
-    tscArgs: ["--strict"],
-    tsxArgs: [],
-    noTypeCheck: false,
-});
-```
-
 ## Error Handling
 
 tsx-strict provides clear error messages and exits gracefully on compilation errors. Type errors are displayed in real-time, and the tsx process only runs when compilation is successful.
@@ -122,15 +104,3 @@ tsx-strict provides clear error messages and exits gracefully on compilation err
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-MIT
-
-## Repository
-
-[https://github.com/uanela/tsx-strict](https://github.com/uanela/tsx-strict)
-
-## Issues
-
-Report issues at: [https://github.com/uanela/tsx-strict/issues](https://github.com/uanela/tsx-strict/issues)

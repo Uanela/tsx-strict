@@ -1,4 +1,4 @@
-# The TSX with automatic type-checking
+# The TSX with automatic Type-Checking
 
 Run TypeScript files with TSX while providing real-time type checking.
 

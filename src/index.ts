@@ -29,14 +29,10 @@ export async function runTsxStrict(file: string, options: Record<string, any>) {
     tscArgs = "",
     tsxArgs = "",
     maxNodeMem,
-    include,
   } = options;
 
   function runTsxCommand(): void {
     const tsxArgsArray = [];
-
-    // if (!clear && watch) tsxArgsArray.push("--watch-preserve-output");
-    // else if (watch) tsxArgsArray.push("--watch");
 
     tsxArgsArray.push(file);
 
@@ -100,16 +96,16 @@ export async function runTsxStrict(file: string, options: Record<string, any>) {
   let compilationErrorSinceStart = false;
   let hasTsErrors = false;
 
-  function restartTsx() {
+  async function restartTsx() {
     compilationId++;
-    killProcesses(compilationId).then((previousCompilationId: any) => {
-      if (previousCompilationId !== compilationId) return;
-      if (compilationErrorSinceStart) Signal.emitFail();
-      else {
-        Signal.emitSuccess();
-        runTsxCommand();
-      }
-    });
+    const previousCompilationId: any = await killProcesses(compilationId);
+
+    if (previousCompilationId !== compilationId) return;
+    if (compilationErrorSinceStart) Signal.emitFail();
+    else {
+      Signal.emitSuccess();
+      runTsxCommand();
+    }
   }
 
   if (watch) setupFileWatcher(restartTsx);

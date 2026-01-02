@@ -9,15 +9,16 @@ export function setupFileWatcher(restartTsx: () => Promise<void>) {
     fileWatcher = null;
   }
 
-  fileWatcher = chokidar.watch(
-    ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "**/*.mjs", "**/*.cjs"],
-    {
-      ignored: [/node_modules/, /(^|[\/\\])\../, /.json/],
-      ignoreInitial: true,
-      persistent: true,
-      cwd: process.cwd(),
-    }
-  );
+  fileWatcher = chokidar.watch([process.cwd()], {
+    ignored: (path) => {
+      if (/[/\\]node_modules[/\\]/.test(path)) return true;
+      if (/\.json$/.test(path)) return true;
+      if (/\.env(\.|$)/.test(path)) return false;
+      return !/\.(ts|js|jsx|tsx|mts|cts|mjs|cjs)$/.test(path);
+    },
+    ignoreInitial: true,
+    persistent: true,
+  });
 
   let isRestarting = false;
   fileWatcher.on("all", async (event, path) => {
@@ -34,8 +35,11 @@ export function setupFileWatcher(restartTsx: () => Promise<void>) {
     sheu.info(`Restarting because of file changes: ${path}`, {
       timestamp: true,
     });
+
+    setTimeout(() => {
+      isRestarting = false;
+    }, 800);
     await restartTsx?.();
-    isRestarting = false;
   });
 }
 

@@ -24,7 +24,7 @@ const compilationCompleteWithoutErrorRegex =
 const compilationStartedRegex =
   /( Starting compilation in watch mode\.\.\.| File change detected\. Starting incremental compilation\.\.\.)/;
 
-const nativeCompilationStartedRegex = /build starting at /;
+// const nativeCompilationStartedRegex = /build starting at /;
 
 // compilation complete
 const compilationCompleteRegex =

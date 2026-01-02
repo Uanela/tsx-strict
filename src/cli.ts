@@ -19,7 +19,7 @@ program
   .option("-w, --watch", "Enable watch mode", false)
   .option("--include <pattern>", "Include glob pattern to watch", collect, [])
   .option("--no-clear", "Do not clear screen", true)
-  .option("--compiler", "Compiler", "typescript/bin/tsc")
+  .option("--compiler <compiler>", "Compiler", "typescript/bin/tsc")
   .option("--tsc-args <args...>", "Additional tsc arguments")
   .option("--tsx-args <args...>", "Additional tsx arguments")
   .option("--no-type-check", "Skip type checking (run tsx directly)", true)

@@ -1,6 +1,6 @@
 {
   "name": "tsx-strict",
-  "version": "0.3.0",
+  "version": "0.3.3",
   "description": "TSX runner with automatic Type-checking",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

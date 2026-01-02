@@ -3,26 +3,27 @@ import sheu from "./sheu";
 
 let fileWatcher: FSWatcher | null = null;
 
-export function setupFileWatcher(restartTsx: () => Promise<void>) {
+export function setupFileWatcher(restartTsx: () => void) {
   if (fileWatcher) {
     fileWatcher.close();
     fileWatcher = null;
   }
 
   fileWatcher = chokidar.watch([process.cwd()], {
-    ignored: (path) => {
-      if (/[/\\]node_modules[/\\]/.test(path)) return true;
-      if (/\.json$/.test(path)) return true;
-      if (/\.env(\.|$)/.test(path)) return false;
-      return !/\.(ts|js|jsx|tsx|mts|cts|mjs|cjs)$/.test(path);
-    },
+    ignored: [/node_modules/, /.build/, /dist/],
     ignoreInitial: true,
     persistent: true,
   });
 
   let isRestarting = false;
-  fileWatcher.on("all", async (event, path) => {
-    if (event === "ready" || isRestarting) return;
+  fileWatcher.on("all", (event, path) => {
+    if (
+      event === "ready" ||
+      isRestarting ||
+      (!/\.(ts|js|jsx|tsx|mts|cts|mjs|cjs)$/.test(path) &&
+        !path.includes(".env"))
+    )
+      return;
     isRestarting = true;
 
     path = path.replace(process.cwd(), "");
@@ -39,7 +40,7 @@ export function setupFileWatcher(restartTsx: () => Promise<void>) {
     setTimeout(() => {
       isRestarting = false;
     }, 800);
-    await restartTsx?.();
+    restartTsx?.();
   });
 }
 

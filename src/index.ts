@@ -96,16 +96,16 @@ export async function runTsxStrict(file: string, options: Record<string, any>) {
   let compilationErrorSinceStart = false;
   let hasTsErrors = false;
 
-  async function restartTsx() {
+  function restartTsx() {
     compilationId++;
-    const previousCompilationId: any = await killProcesses(compilationId);
-
-    if (previousCompilationId !== compilationId) return;
-    if (compilationErrorSinceStart) Signal.emitFail();
-    else {
-      Signal.emitSuccess();
-      runTsxCommand();
-    }
+    killProcesses(compilationId).then((previousCompilationId: any) => {
+      if (previousCompilationId !== compilationId) return;
+      if (compilationErrorSinceStart) Signal.emitFail();
+      else {
+        Signal.emitSuccess();
+        runTsxCommand();
+      }
+    });
   }
 
   if (watch) setupFileWatcher(restartTsx);

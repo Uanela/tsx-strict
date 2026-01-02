@@ -97,7 +97,7 @@ export function print(
   }
 
   if (line.includes(": error TS") && !tsErrorMessagePrinted) {
-    console.error(`[${sheu.red("Error")}] Unable to compile TypeScript:`);
+    console.error(`\n[${sheu.red("Error")}] Unable to compile TypeScript:`);
     tsErrorMessagePrinted = true;
   }
 

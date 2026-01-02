@@ -1,4 +1,4 @@
-import sheu from "./utils/sheu";
+import sheu from "./sheu";
 
 const ANSI_REGEX = new RegExp(
   "[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]+)*|[a-zA-Z\\d]+(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)|(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-nq-uy=><~]))",
@@ -97,15 +97,39 @@ export function print(
   }
 
   if (line.includes(": error TS") && !tsErrorMessagePrinted) {
-    console.error(`\n[${sheu.red("Error")}] Unable to compile TypeScript:`);
+    console.error(`[${sheu.red("Error")}] Unable to compile TypeScript:`);
     tsErrorMessagePrinted = true;
   }
 
-  if (line.includes("Founnd ") || line.includes("Watching for file changes."))
+  // Beautify TypeScript errors
+  if (line.includes(": error TS")) {
+    const errorPattern = /^(.+?)\((\d+),(\d+)\):\s*(error)\s+(TS\d+):\s*(.+)$/;
+    const match = line.match(errorPattern);
+
+    if (match) {
+      const [, filepath, lineNum, colNum, errorText, tsCode, message] = match;
+      line =
+        "\n- " +
+        sheu.cyan(filepath) +
+        sheu.cyan("(") +
+        sheu.yellow(lineNum) +
+        sheu.cyan(",") +
+        sheu.yellow(colNum) +
+        sheu.cyan("):") +
+        " " +
+        sheu.red(errorText) +
+        " " +
+        sheu.gray(tsCode) +
+        sheu.gray(":") +
+        " " +
+        message;
+    }
+  }
+
+  if (line.includes("Found ") || line.includes("Watching for file changes."))
     line = sheu.red(line.split(" - ")[1]);
 
   if (line.replaceAll(" ", "")) prevLine = line;
-
   console.info(!noColors ? line : color(line));
 }
 

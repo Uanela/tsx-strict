@@ -270,6 +270,19 @@ class Sheu {
     console.debug(result);
     return result;
   }
+
+  /**
+   * RGB color with values 0-255
+   */
+  rgb(r: number, g: number, b: number) {
+    return (
+      content: any,
+      options?: { timestamp?: boolean | string; bold?: boolean }
+    ) => {
+      const coloredText = `\x1b[38;2;${r};${g};${b}m${content}\x1b[0m`;
+      return this.formatText(coloredText, options || {});
+    };
+  }
 }
 
 const sheu = new Sheu();

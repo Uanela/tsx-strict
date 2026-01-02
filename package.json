@@ -1,11 +1,12 @@
 {
   "name": "tsx-strict",
-  "version": "0.2.0",
-  "description": "Type-safe TSX runner with automatic Type-checking",
+  "version": "0.3.0",
+  "description": "TSX runner with automatic Type-checking",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "tsx-strict": "./bin/tsx-strict.js"
+    "tsx-strict": "./bin/tsx-strict.js",
+    "tsxs": "./bin/tsx-strict.js"
   },
   "scripts": {
     "build": "npx rimraf dist && tsc",

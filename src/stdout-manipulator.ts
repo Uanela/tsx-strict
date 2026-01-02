@@ -109,7 +109,7 @@ export function print(
     if (match) {
       const [, filepath, lineNum, colNum, errorText, tsCode, message] = match;
       line =
-        "\n- " +
+        "\n  " +
         sheu.cyan(filepath) +
         sheu.cyan("(") +
         sheu.yellow(lineNum) +

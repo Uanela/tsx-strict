@@ -18,6 +18,11 @@ program
   .argument("<file>", "TypeScript file to run")
   .option("-w, --watch", "Enable watch mode", false)
   .option("--include <pattern>", "Include glob pattern to watch", collect, [])
+  .option(
+    "--restart-delay <number>",
+    "The time it must wait to restart when file change",
+    "100"
+  )
   .option("--no-clear", "Do not clear screen", true)
   .option("--compiler <compiler>", "Compiler", "typescript/bin/tsc")
   .option("--tsc-args <args...>", "Additional tsc arguments")

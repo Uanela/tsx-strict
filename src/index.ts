@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 import nodeCleanup, { uninstall } from "node-cleanup";
+import { Worker } from "worker_threads";
 import spawn from "cross-spawn";
-import { run } from "./runner";
 import { detectState, print } from "./stdout-manipulator";
 import { createInterface } from "readline";
 import { killProcesses } from "./killer";
@@ -10,17 +10,18 @@ import { getCompilerPath } from "./compiler-provider";
 import { setupFileWatcher, stopFileWatcher } from "./file-watcher";
 
 let firstTime = true;
-export let tsxKiller: (() => Promise<void>) | null = null;
+export let tsxKiller: Worker | null = null;
 
 export function setTsxKiller(value: typeof tsxKiller) {
   tsxKiller = value;
 }
 
 export function getTsxKiller() {
-  return tsxKiller;
+  return tsxKiller?.terminate;
 }
 
 export async function runTsxStrict(file: string, options: Record<string, any>) {
+  process.env.FORCE_COLOR = "3";
   const {
     clear = true,
     typeCheck = true,
@@ -29,10 +30,11 @@ export async function runTsxStrict(file: string, options: Record<string, any>) {
     tscArgs = "",
     tsxArgs = "",
     maxNodeMem,
+    restartDelay,
   } = options;
 
-  function runTsxCommand(): void {
-    const tsxArgsArray = [];
+  async function runTsxCommand(): Promise<void> {
+    const tsxArgsArray: string[] = [];
 
     tsxArgsArray.push(file);
 
@@ -40,7 +42,7 @@ export async function runTsxStrict(file: string, options: Record<string, any>) {
       const additionalArgs = tsxArgs
         .trim()
         .split(/\s+/)
-        .filter((arg: string[]) => arg.length > 0);
+        .filter((arg: string) => arg.length > 0);
 
       const uniqueArgs = Array.from(
         new Set([...tsxArgsArray, ...additionalArgs])
@@ -49,17 +51,43 @@ export async function runTsxStrict(file: string, options: Record<string, any>) {
       tsxArgsArray.push(...uniqueArgs);
     }
 
-    const tsxCommand = `npx tsx ${tsxArgsArray.join(" ")}`;
+    if (tsxKiller) {
+      await tsxKiller.terminate();
+      tsxKiller = null;
+    }
 
-    if (tsxKiller) tsxKiller?.().then(() => (tsxKiller = run(tsxCommand)));
-    else tsxKiller = run(tsxCommand);
+    tsxKiller = new Worker(file, {
+      argv: tsxArgsArray,
+      execArgv: ["-r", "tsx/cjs"],
+    });
+
+    tsxKiller.on("error", (error) => {
+      if (!error.message.includes("require() of ES Module")) throw error;
+      tsxKiller = new Worker(file, {
+        argv: tsxArgsArray,
+        execArgv: ["-r", "tsx"],
+      });
+
+      tsxKiller.on("error", (error) => {
+        throw error;
+      });
+
+      tsxKiller.on("exit", (code) => {
+        console.error(`Worker stopped with exit code ${code}`);
+      });
+    });
+
+    tsxKiller.on("exit", (code) => {
+      if (code !== 0 && code !== 1)
+        console.error(`Worker stopped with exit code ${code}`);
+    });
   }
 
-  runTsxCommand();
+  await runTsxCommand();
 
   if (!typeCheck) return;
 
-  const tscArgsArray = [];
+  const tscArgsArray: string[] = [];
 
   const nodeArgs = maxNodeMem ? [`--max_old_space_size=${maxNodeMem}`] : [];
 
@@ -73,7 +101,7 @@ export async function runTsxStrict(file: string, options: Record<string, any>) {
     const additionalArgs = tscArgs
       .trim()
       .split(/\s+/)
-      .filter((arg: string[]) => arg.length > 0);
+      .filter((arg: string) => arg.length > 0);
 
     const uniqueArgs = Array.from(
       new Set([...tscArgsArray, ...additionalArgs])
@@ -96,23 +124,22 @@ export async function runTsxStrict(file: string, options: Record<string, any>) {
   let compilationErrorSinceStart = false;
   let hasTsErrors = false;
 
-  function restartTsx() {
+  async function restartTsx() {
     compilationId++;
-    killProcesses(compilationId).then((previousCompilationId: any) => {
-      if (previousCompilationId !== compilationId) return;
-      if (compilationErrorSinceStart) Signal.emitFail();
-      else {
-        Signal.emitSuccess();
-        runTsxCommand();
-      }
-    });
+    const previousCompilationId = await killProcesses(compilationId);
+    if (previousCompilationId !== compilationId) return;
+    if (compilationErrorSinceStart) Signal.emitFail();
+    else {
+      Signal.emitSuccess();
+      await runTsxCommand();
+    }
   }
 
-  if (watch) setupFileWatcher(restartTsx);
+  if (watch) setupFileWatcher(restartTsx, Number(restartDelay));
 
   const rl = createInterface({ input: tscProcess.stdout });
 
-  rl.on("line", function (line) {
+  rl.on("line", async function (line) {
     print(line, {
       clear,
     });
@@ -127,11 +154,10 @@ export async function runTsxStrict(file: string, options: Record<string, any>) {
     if (compilationError) {
       hasTsErrors = true;
       compilationId++;
-      killProcesses(compilationId).then((previousCompilationId: any) => {
-        if (previousCompilationId !== compilationId) return;
+      const previousCompilationId = await killProcesses(compilationId);
+      if (previousCompilationId !== compilationId) return;
 
-        Signal.emitStarted();
-      });
+      Signal.emitStarted();
     }
 
     compilationErrorSinceStart =
@@ -141,14 +167,13 @@ export async function runTsxStrict(file: string, options: Record<string, any>) {
 
     if (compilationCompleteWithoutError && !hasTsErrors && !firstTime) {
       compilationId++;
-      killProcesses(compilationId).then((previousCompilationId: any) => {
-        if (previousCompilationId !== compilationId) return;
-        if (compilationErrorSinceStart) Signal.emitFail();
-        else {
-          Signal.emitSuccess();
-          runTsxCommand();
-        }
-      });
+      const previousCompilationId = await killProcesses(compilationId);
+      if (previousCompilationId !== compilationId) return;
+      if (compilationErrorSinceStart) Signal.emitFail();
+      else {
+        Signal.emitSuccess();
+        await runTsxCommand();
+      }
     } else if (firstTime && compilationCompleteWithoutError && !hasTsErrors) {
       firstTime = false;
       Signal.emitFirstSuccess();
@@ -156,9 +181,11 @@ export async function runTsxStrict(file: string, options: Record<string, any>) {
   });
 
   if (typeof process.on === "function")
-    process.on("message", (msg: string) => {
-      if (msg === "run-on-success-command" && tsxKiller)
-        tsxKiller().then(runTsxCommand);
+    process.on("message", async (msg: string) => {
+      if (msg === "run-on-success-command" && tsxKiller) {
+        await tsxKiller.terminate();
+        await runTsxCommand();
+      }
     });
 
   const sendSignal = (msg: string) => process.send && process.send(msg);
@@ -171,13 +198,20 @@ export async function runTsxStrict(file: string, options: Record<string, any>) {
     emitFile: (path: string) => sendSignal(`file_emitted:${path}`),
   };
 
-  nodeCleanup((_exitCode: number | null, signal: string | null) => {
-    if (signal) tscProcess.kill(signal as any);
+  (nodeCleanup as any)(
+    async (_exitCode: number | null, signal: string | null) => {
+      if (signal) tscProcess.kill(signal as any);
 
-    stopFileWatcher();
-    killProcesses(0).then(() => process.exit());
-    // don't call cleanup handler again
-    uninstall();
-    return false;
-  });
+      if (tsxKiller) {
+        await tsxKiller.terminate();
+      }
+
+      stopFileWatcher();
+      await killProcesses(0);
+      // don't call cleanup handler again
+      uninstall();
+      process.exit();
+      return false;
+    }
+  );
 }

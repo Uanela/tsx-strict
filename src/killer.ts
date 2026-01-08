@@ -5,7 +5,6 @@ import { getTsxKiller, setTsxKiller } from ".";
 
 let KILL_SIGNAL = "15"; // SIGTERM
 let hasPS = true;
-
 const isWindows = process.platform === "win32";
 
 // discover if the OS has `ps`, and therefore can use psTree
@@ -21,7 +20,6 @@ export function kill(child: ChildProcess): Promise<void> {
       resolve();
       return;
     }
-
     if (isWindows) {
       exec(`taskkill /pid ${child.pid} /T /F`, () => resolve());
     } else {
@@ -47,10 +45,19 @@ export async function killProcesses(
     return runningKillProcessesPromise.then(() => currentCompilationId);
 
   const promisesToWaitFor: Promise<any>[] = [];
-
   const tsxKiller = getTsxKiller();
-  if (tsxKiller) {
-    promisesToWaitFor.push(tsxKiller());
+
+  if (tsxKiller && typeof tsxKiller === "function") {
+    // tsxKiller is Worker.terminate method bound to the worker instance
+    promisesToWaitFor.push(
+      new Promise((resolve) => {
+        tsxKiller();
+        resolve(null);
+      })
+      // .catch((error) => {
+      // console.error("Error terminating worker:", error);
+      // })
+    );
     setTsxKiller(null);
   }
 
@@ -60,7 +67,12 @@ export async function killProcesses(
       return currentCompilationId;
     })
     .catch((error) => {
-      console.error("Error killing processes:", error);
+      if (
+        !error.message.includes(
+          "Cannot read properties of undefined (reading 'threadId')"
+        )
+      )
+        console.error("Error killing processes:", error);
       runningKillProcessesPromise = null;
       return currentCompilationId;
     });

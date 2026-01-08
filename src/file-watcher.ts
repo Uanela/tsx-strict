@@ -3,7 +3,7 @@ import sheu from "./sheu";
 
 let fileWatcher: FSWatcher | null = null;
 
-export function setupFileWatcher(restartTsx: () => void) {
+export function setupFileWatcher(restartTsx: () => void, restartDelay: number) {
   if (fileWatcher) {
     fileWatcher.close();
     fileWatcher = null;
@@ -39,7 +39,7 @@ export function setupFileWatcher(restartTsx: () => void) {
 
     setTimeout(() => {
       isRestarting = false;
-    }, 800);
+    }, restartDelay);
     restartTsx?.();
   });
 }

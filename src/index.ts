@@ -17,7 +17,9 @@ export function setTsxKiller(value: typeof tsxKiller) {
 }
 
 export function getTsxKiller() {
-  return tsxKiller?.terminate;
+  return () => {
+    tsxKiller?.terminate();
+  };
 }
 
 export async function runTsxStrict(file: string, options: Record<string, any>) {
@@ -78,8 +80,7 @@ export async function runTsxStrict(file: string, options: Record<string, any>) {
     });
 
     tsxKiller.on("exit", (code) => {
-      if (code !== 0 && code !== 1)
-        console.error(`Worker stopped with exit code ${code}`);
+      if (code !== 0) console.error(`\nWorker stopped with exit code ${code}`);
     });
   }
 
@@ -211,7 +212,7 @@ export async function runTsxStrict(file: string, options: Record<string, any>) {
       // don't call cleanup handler again
       uninstall();
       process.exit();
-      return false;
+      // return false;
     }
   );
 }

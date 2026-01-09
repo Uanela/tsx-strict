@@ -1,6 +1,6 @@
 {
   "name": "tsx-strict",
-  "version": "0.3.3",
+  "version": "0.4.0-canary.3",
   "description": "TSX runner with automatic Type-checking",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -36,22 +36,14 @@
     "url": "https://github.com/uanela/tsx-strict/issues"
   },
   "homepage": "https://github.com/uanela/tsx-strict#readme",
-  "files": [
-    "dist",
-    "bin",
-    "README.md",
-    "LICENSE"
-  ],
+  "files": ["dist", "bin", "README.md", "LICENSE"],
   "engines": {
     "node": ">=20.0.0"
   },
   "peerDependencies": {
-    "@swc/core": "^1.15.8",
-    "swc-node": "^1.0.0",
-    "tsx": "^4.20.5"
+    "tsx": "^4.21.0"
   },
   "devDependencies": {
-    "@swc/core": "^1.15.8",
     "@types/cross-spawn": "^6.0.6",
     "@types/jest": "^30.0.0",
     "@types/node": "^18.0.0",
@@ -59,9 +51,9 @@
     "@types/ps-tree": "^1.1.6",
     "jest": "^30.2.0",
     "rimraf": "^5.0.0",
-    "swc-node": "^1.0.0",
     "ts-jest": "^29.4.5",
     "ts-node-dev": "^2.0.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.3.0"
   },
   "dependencies": {

@@ -1,5 +1,6 @@
 import chokidar, { FSWatcher } from "chokidar";
 import sheu from "./sheu";
+import { getStatus } from ".";
 
 let fileWatcher: FSWatcher | null = null;
 
@@ -33,9 +34,25 @@ export function setupFileWatcher(restartTsx: () => void) {
         ? path.replace("\\", "")
         : path;
 
-    sheu.info(`Restarting because of file changes: ${path}`, {
-      timestamp: true,
-    });
+    const status = getStatus();
+
+    if (!status?.hasTsErrors)
+      sheu.info(`Restarting because of file changes: ${path}`, {
+        timestamp: true,
+      });
+    else
+      setTimeout(() => {
+        if (status.hasTsErrors) {
+          sheu.warn(
+            `Waiting for TypeScript errors to be fixed in order to restart`,
+            { timestamp: true }
+          );
+        } else {
+          sheu.info(`Restarting because of file changes: ${path}`, {
+            timestamp: true,
+          });
+        }
+      }, 500);
 
     setTimeout(() => {
       isRestarting = false;

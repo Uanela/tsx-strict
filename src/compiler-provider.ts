@@ -76,14 +76,13 @@ export function isESM(filePath?: string): boolean {
 }
 
 export function getTscArgs(userFilePath: string): string[] {
-  const args: string[] = [];
+  const args: string[] = [userFilePath];
 
   if (hasTsConfig()) return args;
 
   const module = isESM(userFilePath) ? "ES2020" : "commonjs";
 
   args.push(
-    userFilePath,
     "--target",
     "ES2020",
     "--lib",

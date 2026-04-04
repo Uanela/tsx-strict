@@ -27,7 +27,8 @@ program
   .option("-p, --path <path>", "tsconfig.json path", "tsconfig.json")
   .option("--tsc-args <args...>", "Additional tsc arguments")
   .option("--tsx-args <args...>", "Additional tsx arguments")
-  .option("--no-type-check", "Skip type checking (run tsx directly)", true)
+  .option("-n, --no-type-check", "Skip type checking (run tsx directly)", true)
+  .option("--maxNodeMem", "Sets up max node memory", "4096")
   .action(async (file, options) => {
     try {
       await runTsxStrict(file, options);
@@ -36,4 +37,5 @@ program
       process.exit(1);
     }
   });
+
 program.parse();

@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env tsx
 
 import nodeCleanup, { uninstall } from "node-cleanup";
 import spawn from "cross-spawn";
@@ -8,6 +8,7 @@ import { createInterface } from "readline";
 import { killProcesses } from "./killer";
 import { getCompilerPath, getTscArgs } from "./compiler-provider";
 import { setupFileWatcher, stopFileWatcher } from "./file-watcher";
+import { loadConfig } from "./utils/config-loader";
 
 let firstTime = true;
 export let tsxKiller: (() => Promise<void>) | null = null;
@@ -26,16 +27,29 @@ export function getStatus() {
   return status;
 }
 
-export async function runTsxStrict(file: string, options: Record<string, any>) {
+export type ProgramOptions = {
+  watch: boolean;
+  include?: string | undefined;
+  clear: boolean;
+  compiler: string;
+  path: string;
+  tscArgs?: string[] | undefined;
+  tsxArgs?: string[] | undefined;
+  typeCheck: boolean;
+  maxNodeMem: string;
+};
+
+export async function runTsxStrict(file: string, options: ProgramOptions) {
+  const fileConfig = await loadConfig();
   const {
     clear = true,
     typeCheck = true,
     compiler,
     watch = false,
-    tscArgs = "",
-    tsxArgs = "",
+    tscArgs = [],
+    tsxArgs = [],
     maxNodeMem,
-  } = options;
+  } = { ...options, ...fileConfig };
 
   status = { ...options, ...status } as Record<string, any>;
 
@@ -44,18 +58,9 @@ export async function runTsxStrict(file: string, options: Record<string, any>) {
 
     tsxArgsArray.push(file);
 
-    if (tsxArgs.trim()) {
-      const additionalArgs = tsxArgs
-        .trim()
-        .split(/\s+/)
-        .filter((arg: string[]) => arg.length > 0);
-
-      const uniqueArgs = Array.from(
-        new Set([...tsxArgsArray, ...additionalArgs])
-      );
-      tsxArgsArray.length = 0;
-      tsxArgsArray.push(...uniqueArgs);
-    }
+    const uniqueArgs = Array.from(new Set([...tsxArgsArray, ...tsxArgs]));
+    tsxArgsArray.length = 0;
+    tsxArgsArray.push(...uniqueArgs);
 
     const tsxCommand = `${process.env.npm_lifecycle_script === "npx" ? "npx " : ""}tsx ${tsxArgsArray.join(" ")}`;
 
@@ -77,18 +82,9 @@ export async function runTsxStrict(file: string, options: Record<string, any>) {
 
   if (watch) tscArgsArray.push("--watch");
 
-  if (tscArgs.trim()) {
-    const additionalArgs = tscArgs
-      .trim()
-      .split(/\s+/)
-      .filter((arg: string[]) => arg.length > 0);
-
-    const uniqueArgs = Array.from(
-      new Set([...tscArgsArray, ...additionalArgs])
-    );
-    tscArgsArray.length = 0;
-    tscArgsArray.push(...uniqueArgs);
-  }
+  const uniqueArgs = Array.from(new Set([...tscArgsArray, ...tscArgs]));
+  tscArgsArray.length = 0;
+  tscArgsArray.push(...uniqueArgs);
 
   const tscProcess = spawn("node", [...nodeArgs, ...tscArgsArray]);
   if (!tscProcess.stdout) throw new Error("Unable to read Typescript stdout");
@@ -116,7 +112,7 @@ export async function runTsxStrict(file: string, options: Record<string, any>) {
     });
   }
 
-  if (watch) setupFileWatcher(restartTsx);
+  if (watch) setupFileWatcher(restartTsx, fileConfig);
 
   const rl = createInterface({ input: tscProcess.stdout });
 

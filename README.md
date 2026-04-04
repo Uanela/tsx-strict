@@ -9,6 +9,7 @@ Run TypeScript files with TSX while providing real-time type checking.
 - Intelligent process management
 - Customizable compiler support
 - Memory management options
+- Config file support (`tsx-strict.config.ts` / `tsxs.config.ts`)
 
 ## Installation
 
@@ -51,6 +52,40 @@ tsxs --no-type-check app.ts
 | `--tsx-args <args...>` | Additional tsx arguments                 | `[]`                 |
 | `--silent`             | Suppress output                          | `false`              |
 | `--no-type-check`      | Skip type checking (run tsx directly)    | `false`              |
+
+## Config File
+
+Create a `tsx-strict.config.ts` or `tsxs.config.ts` at your project root for persistent configuration. CLI args always take precedence over the config file.
+
+```typescript
+import { defineConfig } from "tsx-strict/config";
+
+export default defineConfig({
+    watch: true,
+    clear: true,
+    typeCheck: true,
+    compiler: "typescript/bin/tsc",
+    tscArgs: ["--strict"],
+    tsxArgs: ["--env-file=.env"],
+    maxNodeMem: "4096",
+});
+```
+
+### Watch Options
+
+`watch` can be `true` to use defaults, or an object for full control:
+
+```typescript
+import { defineConfig } from "tsx-strict/config";
+
+export default defineConfig({
+    watch: {
+        include: ["src/**"],
+        ignore: ["**/*.test.ts", /generated/, (path) => path.includes("dist")],
+        extensions: ["ts", "tsx", "js"],
+    },
+});
+```
 
 ## How It Works
 

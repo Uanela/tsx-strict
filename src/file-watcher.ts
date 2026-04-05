@@ -53,6 +53,7 @@ export function setupFileWatcher(
     else
       setTimeout(() => {
         if (status.hasTsErrors) {
+          console.log("");
           sheu.warn(
             `Waiting for TypeScript errors to be fixed in order to restart`,
             { timestamp: true }

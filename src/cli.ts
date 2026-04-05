@@ -28,7 +28,7 @@ program
   .option("--tsc-args <args...>", "Additional tsc arguments")
   .option("--tsx-args <args...>", "Additional tsx arguments")
   .option("-n, --no-type-check", "Skip type checking (run tsx directly)", true)
-  .option("--maxNodeMem", "Sets up max node memory", "4096")
+  .option("--maxNodeMem <maxNodeMem>", "Sets up max node memory", "4096")
   .action(async (file, options) => {
     try {
       await runTsxStrict(file, options);

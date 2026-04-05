@@ -53,16 +53,6 @@ export async function runTsxStrict(file: string, options: ProgramOptions) {
 
   status = { ...options, ...status } as Record<string, any>;
 
-  const sendSignal = (msg: string) => process.send && process.send(msg);
-
-  const Signal = {
-    emitStarted: () => sendSignal("started"),
-    emitFirstSuccess: () => sendSignal("first_success"),
-    emitSuccess: () => sendSignal("success"),
-    emitFail: () => sendSignal("compile_errors"),
-    emitFile: (path: string) => sendSignal(`file_emitted:${path}`),
-  };
-
   function runTsxCommand(): void {
     const tsxArgsArray = [];
 
@@ -78,78 +68,106 @@ export async function runTsxStrict(file: string, options: ProgramOptions) {
     else tsxKiller = run(tsxCommand);
   }
 
-  // tsx starts immediately, no waiting for tsc
   runTsxCommand();
 
   if (!typeCheck) return;
 
-  const tscArgsArray: string[] = [];
+  const tscArgsArray = [];
+
   const nodeArgs = maxNodeMem ? [`--max_old_space_size=${maxNodeMem}`] : [];
 
   tscArgsArray.push(getCompilerPath(compiler));
   tscArgsArray.push(...getTscArgs(file));
   tscArgsArray.push("--noEmit");
-  // No --watch — tsc is always a fresh single-pass process
+
+  if (watch) tscArgsArray.push("--watch");
 
   const uniqueArgs = Array.from(new Set([...tscArgsArray, ...tscArgs]));
   tscArgsArray.length = 0;
   tscArgsArray.push(...uniqueArgs);
 
+  const tscProcess = spawn("node", [...nodeArgs, ...tscArgsArray]);
+  if (!tscProcess.stdout) throw new Error("Unable to read Typescript stdout");
+  if (!tscProcess.stderr) throw new Error("Unable to read Typescript stderr");
+
+  tscProcess.on("exit", (_: number | null, signal: string | null) => {
+    if (signal !== null) process.kill(process.pid, signal);
+  });
+
+  tscProcess.stderr.pipe(process.stderr);
+
+  let compilationId = 0;
+  let compilationErrorSinceStart = false;
   status.hasTsErrors = false;
-  let currentTscProcess: ReturnType<typeof spawn> | null = null;
-
-  function spawnTscProcess() {
-    if (currentTscProcess) currentTscProcess.kill();
-
-    const tscProcess = spawn("node", [...nodeArgs, ...tscArgsArray]);
-    currentTscProcess = tscProcess;
-
-    if (!tscProcess.stdout) throw new Error("Unable to read Typescript stdout");
-    if (!tscProcess.stderr) throw new Error("Unable to read Typescript stderr");
-
-    tscProcess.on("exit", (_: number | null, signal: string | null) => {
-      if (signal !== null) process.kill(process.pid, signal as any);
-    });
-
-    tscProcess.stderr.pipe(process.stderr);
-
-    const rl = createInterface({ input: tscProcess.stdout });
-    rl.on("line", function (line) {
-      print(line, { clear });
-
-      const state = detectState(line);
-
-      if (state.compilationCompleteWithoutError) {
-        status.hasTsErrors = false;
-        if (firstTime) {
-          firstTime = false;
-          Signal.emitFirstSuccess();
-        } else {
-          Signal.emitSuccess();
-          runTsxCommand();
-        }
-      }
-
-      if (state.compilationError && !status.hasTsErrors) {
-        status.hasTsErrors = true;
-        // tsc found errors — kill tsx immediately
-        if (tsxKiller) tsxKiller();
-        Signal.emitFail();
-      }
-
-      if (state.fileEmitted !== null) Signal.emitFile(state.fileEmitted);
-    });
-  }
 
   function restartTsx() {
-    if (!status.hasTsErrors) runTsxCommand();
-    spawnTscProcess();
+    compilationId++;
+    killProcesses(compilationId).then((previousCompilationId: any) => {
+      if (previousCompilationId !== compilationId) return;
+      if (compilationErrorSinceStart) Signal.emitFail();
+      else {
+        Signal.emitSuccess();
+        runTsxCommand();
+      }
+    });
   }
 
   if (watch) setupFileWatcher(restartTsx, fileConfig);
 
-  // Initial tsc run (tsx already started above)
-  spawnTscProcess();
+  const rl = createInterface({ input: tscProcess.stdout });
+  let tscKilledTsx = false;
+
+  rl.on("line", function (line) {
+    print(line, {
+      clear,
+    });
+
+    const state = detectState(line);
+    const compilationStarted = state.compilationStarted;
+    const compilationError = state.compilationError;
+    const compilationCompleteWithoutError =
+      state.compilationCompleteWithoutError;
+
+    if (compilationCompleteWithoutError) status.hasTsErrors = false;
+
+    if (compilationError) {
+      status.hasTsErrors = true;
+      compilationId++;
+      killProcesses(compilationId).then((previousCompilationId: any) => {
+        if (previousCompilationId !== compilationId) return;
+
+        tscKilledTsx = true;
+        Signal.emitStarted();
+      });
+    }
+
+    compilationErrorSinceStart =
+      (!compilationStarted && compilationErrorSinceStart) || compilationError;
+
+    if (state.fileEmitted !== null) Signal.emitFile(state.fileEmitted);
+
+    if (compilationCompleteWithoutError && !status.hasTsErrors && !firstTime) {
+      compilationId++;
+
+      if (tscKilledTsx)
+        killProcesses(compilationId).then((previousCompilationId: any) => {
+          if (previousCompilationId !== compilationId) return;
+          if (compilationErrorSinceStart) Signal.emitFail();
+          else {
+            Signal.emitSuccess();
+            tscKilledTsx = false;
+            runTsxCommand();
+          }
+        });
+    } else if (
+      firstTime &&
+      compilationCompleteWithoutError &&
+      !status.hasTsErrors
+    ) {
+      firstTime = false;
+      Signal.emitFirstSuccess();
+    }
+  });
 
   if (typeof process.on === "function")
     process.on("message", (msg: string) => {
@@ -157,10 +175,22 @@ export async function runTsxStrict(file: string, options: ProgramOptions) {
         tsxKiller().then(runTsxCommand);
     });
 
+  const sendSignal = (msg: string) => process.send && process.send(msg);
+
+  const Signal = {
+    emitStarted: () => sendSignal("started"),
+    emitFirstSuccess: () => sendSignal("first_success"),
+    emitSuccess: () => sendSignal("success"),
+    emitFail: () => sendSignal("compile_errors"),
+    emitFile: (path: string) => sendSignal(`file_emitted:${path}`),
+  };
+
   nodeCleanup((_exitCode: number | null, signal: string | null) => {
-    if (signal && currentTscProcess) currentTscProcess.kill(signal as any);
+    if (signal) tscProcess.kill(signal as any);
+
     stopFileWatcher();
     killProcesses(0).then(() => process.exit());
+    // don't call cleanup handler again
     uninstall();
     return false;
   });

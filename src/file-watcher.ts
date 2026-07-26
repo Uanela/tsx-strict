@@ -20,7 +20,7 @@ export function setupFileWatcher(
       : ({} as Partial<WatchOptions>);
 
   fileWatcher = chokidar.watch(watchOptions.include ?? [process.cwd()], {
-    ignored: [/node_modules/, /.build/, /dist/, ...(watchOptions.ignore ?? [])],
+    ignored: [/node_modules/, /.build/, /.data/, /dist/, ...(watchOptions.ignore ?? [])],
     ignoreInitial: true,
     persistent: true,
   });
@@ -58,6 +58,7 @@ export function setupFileWatcher(
             `Waiting for TypeScript errors to be fixed in order to restart`,
             { timestamp: true }
           );
+          setInterval(() => { });
         } else {
           sheu.info(`Restarting because of file changes: ${path}`, {
             timestamp: true,

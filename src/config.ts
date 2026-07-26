@@ -6,7 +6,7 @@ export type WatchOptions = {
   extensions?: string[];
 };
 
-export type TsxStrictConfig = ProgramOptions & {
+export type TsxStrictConfig = Partial<ProgramOptions> & {
   watch?: boolean | WatchOptions;
 };
 
